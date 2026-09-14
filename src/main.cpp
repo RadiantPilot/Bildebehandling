@@ -24,29 +24,63 @@ void convert(const std::string& INPUT, const std::string& OUTPUT)
 // convert(INPUT, OUTPUT);
 
 
-
-void oppg_2()
+imglib::image regnUtBilder(imglib::image f1, imglib::image f2, char op)
 {
-    const std::string INPUT = "images/input/";
-    const std::string OUTPUT = "images/output/";
+    unsigned int N = std::min(f1.width(),   f2.width());
+    unsigned int M = std::min(f1.height(),  f2.height());
 
-    imglib::image im(INPUT + "Untethered.bmp");
-    imglib::image im2(INPUT + "ARMSTRONG.bmp");
+    imglib::image g(M, N);
 
-    imglib::image result(im.height(), im.width());
+    for(unsigned int i = 0; i < M; ++i){
+        for(unsigned int j = 0; j < N; ++j){
+            double a = f1.begin()[i * f1.width() + j];
+            double b = f2.begin()[i * f2.width() + j];
+            double results;
 
-    int H = std::min(im.height(),  im2.height());
-    int W = std::min(im.width(),  im2.width());
+            switch (op)
+            {
+                case '+': results = a + b; break;
+                case '-': results = a - b; break;
+                case '*': results = a * b; break;
+                case '/': results = a / b * 255; break;
+                default: results = 0; break;
+            }
 
-    // std::cout << im.height() << "," << im.width() << '\n';
-
-    for(int i = 0; i < H; ++i){
-        for(int j = 0; j < W; ++j){
-            result(i,j) = (im(i,j) / im2(i,j)) * 255;   // Bytt ut / med +, - eller *
+            g.begin()[i * N + j] = results;
         }
     }
 
-    result.save(OUTPUT+"Innlevering_1_Oppg_2.bmp");
+    return g;
+
+}
+
+imglib::image normaliserBilde(imglib::image f)
+{
+    unsigned int N = f.width();
+    unsigned int M = f.height();
+
+    imglib::image g(M, N);
+
+    // Finner piksel med lavest og høyest lysverdi
+    double minVerdi = f.begin()[0];
+    double maxVerdi = f.begin()[0];
+
+    for (unsigned int i = 0; i < M * N; i++)
+    {
+        double verdi = f.begin()[i];
+        if (verdi < minVerdi) minVerdi = verdi;
+        if (verdi > maxVerdi) maxVerdi = verdi;
+    }
+
+    double spennvidde = maxVerdi - minVerdi;
+    if (spennvidde == 0) spennvidde = 1;
+
+    for (unsigned int i = 0; i < M * N; i++)
+    {
+        g.begin()[i] = (f.begin()[i] - minVerdi) / spennvidde * 255;
+    }
+
+    return g;
 }
 
 
@@ -117,6 +151,56 @@ imglib::image Oppg_3_b(imglib::image f, double scale)
     return g;
 }
 
+// Rotation of image
+imglib::image Oppg_4(imglib::image f, float rotation)
+{
+    int M = (int)f.height();
+    int N = (int)f.width();
+
+    imglib::image g(M, N);
+
+    // Gjør om fra grader til radianer
+    const double pi = 3.1415;
+    double theta = rotation * pi / 180;
+    double cosT = std::cos(theta);
+    double sinT = std::sin(theta);
+
+    // Finner midtpunktet i bildet
+    double ci = (M - 1) / 2.0;
+    double cj = (N - 1) / 2.0;
+    
+    for (int i = 0; i < M; i++)
+    {
+        for (int j = 0; j < N; j++)
+        {
+            // 1.   Flytter origo til midten
+            double y = i - ci;
+            double x = j - cj;
+
+            // 2.   Roterer baklengs (for å finne hvor pikselene kom fra)
+            double x_kilde = cosT * x + sinT * y;
+            double y_kilde = -sinT * x + cosT * y;
+
+            // 3.   Flytter origo tilbake (pluss avrunding til nærmeste piksel)
+            int r = (int)std::round(y_kilde + ci);
+            int c = (int)std::round(x_kilde + cj);
+
+            // 4. Kopierer pikselen hvis den ligger inne i originalbildet. 
+            // Hvis den ikke gjør det, setter den pikselen til svart.
+            if (r >= 0 && r < M && c >= 0 && c < N)
+            {
+                g.begin()[i * N + j] = f.begin()[r * N + c];
+            }
+            else
+            {
+                g.begin()[i * N + j] = 0;
+            }
+        }
+    }
+    return g;
+}
+
+
 
 int main()
 {
@@ -127,12 +211,26 @@ int main()
     imglib::image tom("image/input/finnes_ikke.bmp");
     tom.save(OUTPUT + "empty.bmp");
 
-    //Oppg 2: Kjører bildeoperasjonene
-    oppg_2();
+    imglib::image im_1(INPUT + "Armstrong.bmp");
+    imglib::image im_2(INPUT + "Untethered.bmp");
 
-    imglib::image im(INPUT + "Untethered.bmp");
-    imglib::image skalert = Oppg_3_b(im, 2.0);
-    skalert.save(OUTPUT + "oppg_3b_skalert.bmp");
+    //Oppg 2: Kjører bildeoperasjonene
+    imglib::image sum = regnUtBilder(im_1, im_2, '+');    // + kan byttes ut med den operasjonen du vil bruke (+, -, *, /)
+    sum.save(OUTPUT + "oppg_2_sum.bmp");
+
+    imglib::image normalisert =normaliserBilde(im_1);
+    normalisert.save(OUTPUT + "oppg_2e_normalisert.bmp");
+
+    // Oppg 3:
+    imglib::image skalert_a = Oppg_3_a(im_1, 2.0);
+    skalert_a.save(OUTPUT + "oppg_3a_skalert.bmp");
+
+    imglib::image skalert_b = Oppg_3_b(im_2, 2.0);
+    skalert_b.save(OUTPUT + "oppg_3b_skalert.bmp");
+
+    // Oppg 4:
+    imglib::image rotert = Oppg_4(im_1, 30);
+    rotert.save(OUTPUT + "oppg_4_rotert.bmp");
 
     return 0;
 }
